@@ -1,0 +1,95 @@
+import os
+import argparse
+import matplotlib.pyplot as plt
+
+
+_global_figlist = [ ]
+
+
+def _publish_if_needed(fig, figname, publish):
+    if publish is None: return
+    pubname = os.path.join(publish[0], figname + '.' + publish[1])
+    print "publishing", pubname
+    plt.savefig(pubname)
+
+
+def _get_name(figure_func):
+    try:
+        name = figure_func.__name__
+    except AttributeError:
+        name = figure_func.__class__.__name__
+    return name
+
+
+def set_figlist(figlist):
+    del _global_figlist[:]
+    for f in figlist: _global_figlist.append(f)
+
+
+def get_figlist():
+    return list(_global_figlist)
+
+
+def exec_figure(figure_func, interactive=False, publish=None):
+    """Execute a callable 'figure_func' that receives a pyplot. Figure instance as
+    its only required argument. Use interactive=True if running repeatedly from
+    ipython or emacs, so that the figure instance will be re-used if it is still
+    open (it will be created again if it was closed). Set publish=['fig-dir',
+    'pdf'] for example to save the figure as a pdf document in the directory
+    fig-dir. If figure_func has attributes 'size' or 'name', those will be used
+    in place of defaults to set the figure size, window title, and published
+    file name.
+
+    """
+
+    figsize = getattr(figure_func, 'size', [8, 8])
+    figname = getattr(figure_func, 'name', _get_name(figure_func))
+    fignum = 1
+
+    if interactive: plt.ion()
+    else: plt.ioff()
+    fig = plt.figure(fignum, figsize=figsize)
+    fig.canvas.set_window_title(figname)
+
+    if interactive:
+        if plt.fignum_exists(fignum): fig.clear()
+        else: plt.show()
+        figure_func(fig)
+        plt.draw()
+        _publish_if_needed(fig, figname, publish)
+    else:
+        figure_func(fig)
+        _publish_if_needed(fig, figname, publish)
+        plt.show()
+
+
+def publish_all(figlist=None, directory='.', publish=['.', 'pdf']):
+    """Publish a whole list of figures. Use the global list if figlist is None.
+
+    """
+    if figlist is None: figlist = _global_figlist
+    for f in figlist:
+        figname = getattr(f, 'name', _get_name(f))
+        exec_figure(f, interactive=True, publish=publish)
+
+
+def run_main(figlist=None, directory='.'):
+    """Dispatch a list of figures from the command line. Use the global list if
+    figlist is None.
+
+    """
+    if figlist is None: figlist = _global_figlist
+    
+    figdict = dict([(getattr(f, 'name', _get_name(f)), f) for f in figlist])
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('fignames', nargs='+', choices=figdict.keys())
+    parser.add_argument('--pdf', action='store_true')
+    parser.add_argument('--directory', '-d', default=directory)
+    args = parser.parse_args()
+
+    publish = [args.directory, 'pdf'] if args.pdf else None
+
+    for figname in args.fignames:
+        exec_figure(figdict[figname], interactive=args.pdf, publish=publish)
+
