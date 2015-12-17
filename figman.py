@@ -31,14 +31,14 @@ def get_figlist():
 
 
 def exec_figure(figure_func, interactive=False, publish=None):
-    """Execute a callable 'figure_func' that receives a pyplot. Figure instance as
+    """Execute a callable 'figure_func' that receives a pyplot.Figure instance as
     its only required argument. Use interactive=True if running repeatedly from
     ipython or emacs, so that the figure instance will be re-used if it is still
     open (it will be created again if it was closed). Set publish=['fig-dir',
     'pdf'] for example to save the figure as a pdf document in the directory
-    fig-dir. If figure_func has attributes 'size' or 'name', those will be used
-    in place of defaults to set the figure size, window title, and published
-    file name.
+    'fig-dir'. If figure_func has attributes 'size' or 'name', those will be
+    used in place of defaults to set the figure size, window title, and
+    published file name. Return the figure instance.
 
     """
 
@@ -62,6 +62,8 @@ def exec_figure(figure_func, interactive=False, publish=None):
         _publish_if_needed(fig, figname, publish)
         plt.show()
 
+    return fig
+
 
 def publish_all(figlist=None, directory='.', publish=['.', 'pdf']):
     """Publish a whole list of figures. Use the global list if figlist is None.
@@ -70,7 +72,8 @@ def publish_all(figlist=None, directory='.', publish=['.', 'pdf']):
     if figlist is None: figlist = _global_figlist
     for f in figlist:
         figname = getattr(f, 'name', _get_name(f))
-        exec_figure(f, interactive=True, publish=publish)
+        fig = exec_figure(f, interactive=True, publish=publish)
+        plt.close(fig)
 
 
 def run_main(figlist=None, directory='.'):
@@ -79,17 +82,23 @@ def run_main(figlist=None, directory='.'):
 
     """
     if figlist is None: figlist = _global_figlist
-    
     figdict = dict([(getattr(f, 'name', _get_name(f)), f) for f in figlist])
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('fignames', nargs='+', choices=figdict.keys())
-    parser.add_argument('--pdf', action='store_true')
+    parser.add_argument('fignames', nargs='+', choices=['all'] + figdict.keys())
+    parser.add_argument('--publish', default='')
     parser.add_argument('--directory', '-d', default=directory)
     args = parser.parse_args()
 
-    publish = [args.directory, 'pdf'] if args.pdf else None
+    if args.publish:
+        publish = [args.directory, args.publish]
+    else:
+        publish = None
+
+    if args.fignames[0] == 'all':
+        args.fignames = [_get_name(f) for f in figlist]
 
     for figname in args.fignames:
-        exec_figure(figdict[figname], interactive=args.pdf, publish=publish)
-
+        fig = exec_figure(figdict[figname], interactive=publish, publish=publish)
+        if publish:
+            plt.close(fig)
