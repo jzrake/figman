@@ -14,10 +14,13 @@ def _publish_if_needed(fig, figname, publish):
 
 
 def _get_name(figure_func):
-    try:
-        name = figure_func.__name__
-    except AttributeError:
-        name = figure_func.__class__.__name__
+    if hasattr(figure_func, 'name'):
+        name = figure_func.name
+    else:
+        try:
+            name = figure_func.__name__
+        except AttributeError:
+            name = figure_func.__class__.__name__
     return name
 
 
@@ -43,7 +46,7 @@ def exec_figure(figure_func, interactive=False, publish=None):
     """
 
     figsize = getattr(figure_func, 'size', [8, 8])
-    figname = getattr(figure_func, 'name', _get_name(figure_func))
+    figname = _get_name(figure_func)
     fignum = 1
 
     if interactive: plt.ion()
@@ -65,15 +68,16 @@ def exec_figure(figure_func, interactive=False, publish=None):
     return fig
 
 
-def publish_all(figlist=None, directory='.', publish=['.', 'pdf']):
+def publish_all(figlist=None, directory='.', reuse=False, publish=['.', 'pdf']):
     """Publish a whole list of figures. Use the global list if figlist is None.
 
     """
     if figlist is None: figlist = _global_figlist
     for f in figlist:
-        figname = getattr(f, 'name', _get_name(f))
+        figname = _get_name(f)
         fig = exec_figure(f, interactive=True, publish=publish)
-        plt.close(fig)
+        if not reuse:
+            plt.close(fig)
 
 
 def run_main(figlist=None, directory='.'):
@@ -82,12 +86,14 @@ def run_main(figlist=None, directory='.'):
 
     """
     if figlist is None: figlist = _global_figlist
-    figdict = dict([(getattr(f, 'name', _get_name(f)), f) for f in figlist])
+    figdict = dict([(_get_name(f), f) for f in figlist])
 
     parser = argparse.ArgumentParser()
     parser.add_argument('fignames', nargs='+', choices=['all'] + figdict.keys())
     parser.add_argument('--publish', default='')
     parser.add_argument('--directory', '-d', default=directory)
+    parser.add_argument('--reuse-fig', action='store_true',
+                        help='reuse the same window for all figures')
     args = parser.parse_args()
 
     if args.publish:
@@ -100,5 +106,5 @@ def run_main(figlist=None, directory='.'):
 
     for figname in args.fignames:
         fig = exec_figure(figdict[figname], interactive=publish, publish=publish)
-        if publish:
+        if publish and not args.reuse_fig:
             plt.close(fig)
