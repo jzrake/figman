@@ -33,7 +33,8 @@ def get_figlist():
     return list(_global_figlist)
 
 
-def exec_figure(figure_func, interactive=False, publish=None):
+def exec_figure(figure_func, interactive=False, reuse=False, publish=None,
+                subplot_params=None):
     """Execute a callable 'figure_func' that receives a pyplot.Figure instance as
     its only required argument. Use interactive=True if running repeatedly from
     ipython or emacs, so that the figure instance will be re-used if it is still
@@ -58,14 +59,21 @@ def exec_figure(figure_func, interactive=False, publish=None):
         if plt.fignum_exists(fignum): fig.clear()
         else: plt.show()
         figure_func(fig)
+        if subplot_params:
+            fig.subplots_adjust(**subplot_params)
         plt.draw()
         _publish_if_needed(fig, figname, publish)
     else:
         figure_func(fig)
+        if subplot_params:
+            fig.subplots_adjust(**subplot_params)
         _publish_if_needed(fig, figname, publish)
         plt.show()
 
-    return fig
+    if not reuse:
+        plt.close(fig)
+    else:
+        return fig
 
 
 def publish_all(figlist=None, directory='.', reuse=False, publish=['.', 'pdf']):
@@ -75,9 +83,7 @@ def publish_all(figlist=None, directory='.', reuse=False, publish=['.', 'pdf']):
     if figlist is None: figlist = _global_figlist
     for f in figlist:
         figname = _get_name(f)
-        fig = exec_figure(f, interactive=True, publish=publish)
-        if not reuse:
-            plt.close(fig)
+        fig = exec_figure(f, interactive=True, reuse=reuse, publish=publish)
 
 
 def run_main(figlist=None, directory='.'):
@@ -105,6 +111,8 @@ def run_main(figlist=None, directory='.'):
         args.fignames = [_get_name(f) for f in figlist]
 
     for figname in args.fignames:
-        fig = exec_figure(figdict[figname], interactive=publish, publish=publish)
-        if publish and not args.reuse_fig:
-            plt.close(fig)
+        fig = exec_figure(figdict[figname], interactive=publish,
+                          reuse=(publish and not args.reuse_fig),
+                          publish=publish)
+        #if publish and not args.reuse_fig:
+        #    plt.close(fig)
