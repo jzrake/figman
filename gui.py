@@ -226,3 +226,8 @@ def run_main():
     window.show()
     window.raise_()
     app.exec_()
+
+
+
+if __name__ == "__main__":
+    run_main()
