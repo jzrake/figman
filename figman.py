@@ -47,6 +47,7 @@ def exec_figure(figure_func, interactive=False, reuse=False, publish=None,
     """
 
     figsize = getattr(figure_func, 'size', [8, 8])
+    figsubp = getattr(figure_func, 'subplot_params', subplot_params)
     figname = _get_name(figure_func)
     fignum = 1
 
@@ -59,14 +60,14 @@ def exec_figure(figure_func, interactive=False, reuse=False, publish=None,
         if plt.fignum_exists(fignum): fig.clear()
         else: plt.show()
         figure_func(fig)
-        if subplot_params:
-            fig.subplots_adjust(**subplot_params)
+        if figsubp:
+            fig.subplots_adjust(**figsubp)
         plt.draw()
         _publish_if_needed(fig, figname, publish)
     else:
         figure_func(fig)
-        if subplot_params:
-            fig.subplots_adjust(**subplot_params)
+        if figsubp:
+            fig.subplots_adjust(**figsubp)
         _publish_if_needed(fig, figname, publish)
         plt.show()
 
